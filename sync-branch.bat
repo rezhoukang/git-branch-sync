@@ -33,12 +33,16 @@ if not defined DIR exit /b 1
 if not defined URL exit /b 1
 if not exist "!DIR!\.git" (echo ERROR: Not a Git project root.&exit /b 1)
 git -C "!DIR!" remote get-url "!FORK_REMOTE!" >nul 2>&1 || exit /b 1
+
 rem Do not overwrite working-tree edits or untracked files.
 for /f "delims=" %%S in ('git -C "!DIR!" status --porcelain --untracked-files=all') do (echo ERROR: Working tree not clean.&exit /b 1)
-rem Fetch upstream main directly by URL; FETCH_HEAD holds fetched commit.
-git -C "!DIR!" fetch "!URL!" "!SOURCE_BRANCH!" || exit /b 1
+
 rem Refresh Fork refs for --force-with-lease.
 git -C "!DIR!" fetch "!FORK_REMOTE!" || exit /b 1
+
+rem Fetch upstream main last; FETCH_HEAD holds the latest upstream commit.
+git -C "!DIR!" fetch "!URL!" "!SOURCE_BRANCH!" || exit /b 1
+
 rem Create dev if absent; otherwise overwrite it with FETCH_HEAD.
 git -C "!DIR!" show-ref --verify --quiet "refs/heads/!TARGET_BRANCH!"
 if errorlevel 1 (
@@ -47,6 +51,7 @@ if errorlevel 1 (
     git -C "!DIR!" switch "!TARGET_BRANCH!" || exit /b 1
     git -C "!DIR!" reset --hard FETCH_HEAD || exit /b 1
 )
+
 git -C "!DIR!" push --force-with-lease "!FORK_REMOTE!" "!TARGET_BRANCH!:!TARGET_BRANCH!" || exit /b 1
 echo OK
 exit /b 0
